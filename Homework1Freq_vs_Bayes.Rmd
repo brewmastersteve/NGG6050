@@ -1,0 +1,60 @@
+Homework 1: Frequentist vs Bayesian
+
+#Q1
+Question 1: If someone gets a positive test, is it "statistically significant" at the p<0.05 level? Why or why not?
+
+Answer: Under the frequentist approach, in order to determine statistical significance we compare a p value to some significance cutoff p value, typically 0.05.  We will define statistical significance as a p value less than 0.05 in which case we can reject the null hypothesis.  In this scenario, the null hypothesis is that an individual is not infected and we'll use the false positive rate p value of 0.05 as a proxy for the data.  Therefore, with a cutoff p value of p < 0.05 and a p value equal to 0.05, we will say any single test is not statistically significant at the alpha 0.05 level since 0.05 is not less than 0.05.  Thus we cannot reject the null hypothesis and cannot reject the fact that the person is not infected.  However if we are willing to define statistical significance as p ≤ 0.05 or even p < 0.1, then a positive test would be significant.  Thus a p value cutoff (alpha), a user defined parameter, is the key to determining significance in the frequentist approach.
+
+More conceptually speaking, there is only a 5% chance that the positive test was due to random chance (bad test reagents perhaps) and actually came from a person who does not have HIV (ie is under the null hypothesis).  Therefore it is likely that this test instead comes from a different population, that of the alternative distribution where a person is infected.  Thus we can reject the null hypothesis and say this positive test is statistically significant (this whole scenario is assuming an alpha of p ≤ 0.05, the 5% chance)    
+
+
+#Q2
+Question 2: What is the probability that if someone gets a positive test, that person is infected?
+```{r}
+#Answer
+
+N <- 10000 
+false_positive_rate <- 0.05
+false_negative_rate <- 0
+
+#create the sequence of infection rates/priors
+infected_seq <- seq(from = 0, to = 1, by = 0.1)
+
+#create place holder vector for infected given positive probabilities
+infected_given_positive_list <- c()
+#create place holder vector for the posteriors
+posterior_list <- c()
+
+for (n in infected_seq){
+     # Simulate # infections in sample, with our N of 10000
+     infected = rbinom(1, N, n)
+     
+    #simulate false positive rate given the infected distribution
+     positive <- infected + rbinom(1, (N - infected), false_positive_rate)
+     
+      # The probability of positive AND true infection
+      p_is_infected_given_is_positive <- ((positive - (positive - infected)) / positive)
+      
+      
+      # compute posterior terms
+       p_data_given_hypothesis <- 1 - false_negative_rate
+       p_hypothesis <- n
+       p_data <- positive/N
+       
+       #then use Bayes' rule to calculate posterior
+       p_hypothesis_given_data <- (p_data_given_hypothesis * p_hypothesis) / p_data
+  
+  #add the infected given positive probability to the empty/filling up vector
+  infected_given_positive_list <- append(p_is_infected_given_is_positive, infected_given_positive_list)
+  #add the posterior to the empty/filling up vector
+  posterior_list <- append(p_hypothesis_given_data, posterior_list)
+  
+}
+      
+#combine the 2 computations above with their respective infection rate/prior in a tidy dataframe
+final_data <- data.frame("infection_rate" = infected_seq, "prob_infected_given_positive_result" = infected_given_positive_list, "posterior" = posterior_list)
+
+View(final_data)
+
+```
+
