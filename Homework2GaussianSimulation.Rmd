@@ -1,0 +1,25 @@
+Homework 2
+
+In the below article, the authors explored the relationship between IQ and learning disability (LD) diagnoses, noting that a dual gifted and LD diagnosis occurs which presents a contradiction.  In order to do this, they relied on a random sample of students with learning disability diagnoses which presumably had a normal distribution of IQs.
+
+Lovett, B. J., & Sparks, R. L. (2010). Exploring the diagnosis of “Gifted/LD”: Characterizing postsecondary students with learning disability diagnoses at different IQ levels. Journal of Psychoeducational Assessment, 28(2), 91-101.
+
+
+A classic IQ bell curve, which likely matches the distribution of IQs in the students tested.
+```{r}
+
+# Create sample range of IQ scores
+iq_range <- seq(30, 170, by = 1)
+
+#set parameters based on the IQ standard
+the_mean <- 100
+the_sd <- 15
+
+# Calculate probability density for each IQ score
+iq_density <- dnorm(iq_range, the_mean, the_sd)
+
+# Plot the  curve
+plot(iq_range, iq_density, type = "l", lwd = 3, col = "red", xlab = "IQ", ylab = "Probability Density", main = "IQ Bell Curve")
+
+```
+
