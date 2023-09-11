@@ -1,0 +1,327 @@
+Homework 3: Quantal release
+Question 1
+Probabilities are reflected in the "quanta_prob" dataframe produced.
+```{r}
+library(stats)
+library(ggplot2)
+
+
+# Define the parameters
+p <- 0.2
+n <- 10
+#need a really large number of experiments to get the maximum of 10 possible successes/quanta
+num_experiments <- 100000000
+
+# Simulate outcomes
+outcomes <- rbinom(num_experiments, size = n, prob = p)
+
+# Create a table of frequencies
+freq_table <- table(outcomes)
+
+# Convert the frequencies table to a data frame
+freq_df <- as.data.frame(freq_table)
+
+
+#now we have to normalize the data to get probabilities
+#start by summming all the frequencies (denominator)
+the_sum <- sum(freq_df$Freq)
+
+#then add that normalization data to the frequencies dataframe
+freq_df$norm <- freq_df$Freq / the_sum
+
+
+#now let's create a succinct dataframe with the probability of 1-10 quanta being released
+
+quanta_prob <- data.frame("quanta_released" = freq_df$outcomes, "probability" = freq_df$norm)
+View(quanta_prob)
+```
+Question 2
+As you will see with the resulting graph produced, 0.6 seems to be the most probable since it has the highest probability of 8 quanta being released over the interval (0.1-1) tested
+```{r}
+#create sequence of release probabilities
+release_prob_seq <- seq(from = 0.1, to = 1, by = 0.1)
+
+#create empty list for probabilities
+probability_lists <- list()
+  
+for (p in release_prob_seq) {
+  
+
+n <- 14
+#need a really large number of experiments to get the maximum of 14 possible successes/quanta
+num_experiments <- 100000
+
+# Simulate outcomes
+outcomes <- rbinom(num_experiments, size = n, prob = p)
+
+# Create a table of frequencies
+freq_table <- table(outcomes)
+
+# Convert the frequencies table to a data frame
+freq_df <- as.data.frame(freq_table)
+
+
+#now we have to normalize the data to get probabilities
+#start by summming all the frequencies (denominator)
+the_sum <- sum(freq_df$Freq)
+
+#then add that normalization data to the frequencies dataframe
+freq_df$norm <- freq_df$Freq / the_sum
+
+#filter to only keep the information regarding 8 successes/quanta and then only keep the outcomes and norm columns
+freq_df <- freq_df %>%
+  filter(outcomes == 8) %>%
+  transmute(outcomes, norm)
+
+#add another column which adds the release probability in question
+freq_df[1, "Freq"] <- as.numeric(p)
+
+#then keep only the release probability and norm/probability info
+freq_df <- freq_df %>%
+  transmute(Freq, norm)
+
+#add that iteration to the master list created at the beginning
+probability_lists <- c(list(freq_df), probability_lists)
+
+
+}
+
+# Stack the data frames in the list into a single data frame
+final_8_quanta_prob <- do.call(rbind, probability_lists) %>%
+  arrange(Freq)
+
+#rename the columns to make more sense
+colnames(final_8_quanta_prob) <- c("release_probability", "probability_8_quanta")
+
+#plot data to quickly see which release probability for 8 quanta is highest/most probable
+ggplot(final_8_quanta_prob, aes(x = release_probability, y = probability_8_quanta)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(
+    title = "Probability of release of 8 quanta with variable release probabilities",
+    x = "probability of release",
+    y = "probability of 8 quanta"
+  ) +
+  scale_x_continuous(breaks = unique(final_8_quanta_prob$release_probability))
+
+```
+Question 3
+At p = 0.1, total likelihood is about: 1.22e-7 and total log likelihood is about: -15.92.  As you will see from the table produced from the code below, a release probability of 0.5 produces the maximum most total likelihood and log likelihood.
+
+With higher sample sizes, the higher release probabilities like 0.9 begin to have success, and both metrics, total likelihood and log likelihood, increase although the general pattern stays the same when varying sample sizes.
+```{r}
+#create sequence of release probabilities
+release_prob_seq <- seq(from = 0.1, to = 1, by = 0.1)
+
+
+#create empty list for probabilities
+probability_lists <- list()
+
+
+for (p in release_prob_seq) {
+  
+
+n <- 14
+#need a really large number of experiments to get the maximum of 14 possible successes/quanta
+num_experiments <- 100000
+
+# Simulate outcomes
+outcomes <- rbinom(num_experiments, size = n, prob = p)
+
+# Create a table of frequencies
+freq_table <- table(outcomes)
+
+# Convert the frequencies table to a data frame
+freq_df <- as.data.frame(freq_table)
+
+
+#now we have to normalize the data to get probabilities
+#start by summming all the frequencies (denominator)
+the_sum <- sum(freq_df$Freq)
+
+#then add that normalization data to the frequencies dataframe
+freq_df$norm <- freq_df$Freq / the_sum
+
+#filter to only keep the information regarding 5 successes/quanta and then only keep the outcomes and norm columns
+freq_df <- freq_df %>%
+  filter(outcomes == 5) %>%
+  transmute(outcomes, norm)
+
+#add another column which adds the release probability in question
+freq_df[1, "Freq"] <- as.numeric(p)
+
+#then keep only the release probability and norm/probability info
+freq_df <- freq_df %>%
+  transmute(Freq, norm)
+
+#add that iteration to the master list created at the beginning
+probability_lists <- c(list(freq_df), probability_lists)
+
+
+}
+
+# Stack the data frames in the list into a single data frame
+final_5_quanta_prob <- do.call(rbind, probability_lists) %>%
+  arrange(Freq)
+
+#rename the columns to make more sense
+colnames(final_5_quanta_prob) <- c("release_probability", "probability_5_quanta")
+
+
+
+################################
+
+#now that we have information from both experiments (8 and 5 quanta), combine them
+
+two_experiment_data <- join_all(list(final_5_quanta_prob,final_8_quanta_prob))
+
+#add total likelihood
+two_experiment_data$total_likelihood <- two_experiment_data$probability_5_quanta * two_experiment_data$probability_8_quanta
+
+#compute logs and add as different columns
+two_experiment_data$eight_log <- log(two_experiment_data$probability_8_quanta)
+two_experiment_data$five_log <- log(two_experiment_data$probability_5_quanta)
+
+#then calculate logsum
+two_experiment_data$logsum <- two_experiment_data$eight_log + two_experiment_data$five_log
+
+#and get rid of the 2 samples' logs which we no longer need
+two_experiment_data <- two_experiment_data[,-c(5,6)]
+
+
+```
+Question 4
+Since the highest frequency of observed quanta released is 6 (26 counts), we'll compute the probability of 6 quanta released with a range of 0.01-1 release probabilities (going by 0.01 to get the 0.01 resolution in question) and ascertain at which release probability the highest probability of 6 quanta release is achieved, ie the most likely value of p.
+
+As the data simulated below will show after you run it a few times, the most likely value of p is approximately 0.42-0.44.
+```{r}
+#create sequence of release probabilities
+release_prob_seq <- seq(from = 0.01, to = 1, by = 0.01)
+
+
+#create empty list for probabilities
+probability_lists <- list()
+
+
+for (p in release_prob_seq) {
+  
+
+n <- 14
+#need a really large number of experiments to get the maximum of 14 possible successes/quanta
+num_experiments <- 100000
+
+# Simulate outcomes
+outcomes <- rbinom(num_experiments, size = n, prob = p)
+
+# Create a table of frequencies
+freq_table <- table(outcomes)
+
+# Convert the frequencies table to a data frame
+freq_df <- as.data.frame(freq_table)
+
+
+#now we have to normalize the data to get probabilities
+#start by summming all the frequencies (denominator)
+the_sum <- sum(freq_df$Freq)
+
+#then add that normalization data to the frequencies dataframe
+freq_df$norm <- freq_df$Freq / the_sum
+
+#filter to only keep the information regarding 6 successes/quanta and then only keep the outcomes and norm columns
+freq_df <- freq_df %>%
+  filter(outcomes == 6) %>%
+  transmute(outcomes, norm)
+
+#add another column which adds the release probability in question
+freq_df[1, "Freq"] <- as.numeric(p)
+
+#then keep only the release probability and norm/probability info
+freq_df <- freq_df %>%
+  transmute(Freq, norm)
+
+#add that iteration to the master list created at the beginning
+probability_lists <- c(list(freq_df), probability_lists)
+
+
+}
+
+# Stack the data frames in the list into a single data frame
+final_6_quanta_prob <- do.call(rbind, probability_lists) %>%
+  arrange(Freq)
+
+#rename the columns to make more sense
+colnames(final_6_quanta_prob) <- c("release_probability", "probability_6_quanta")
+
+#arrange by probability of 6 quanta to easily see the highest
+final_6_quanta_prob <- final_6_quanta_prob %>%
+  arrange(probability_6_quanta)
+```
+Question 5
+As the question asks, we need to determine p-hat with a release of 7 quantal events. This is essentially the same as question 4, but with a different filter value to reflect the 7 quanta we are modeling.
+
+A few runs of this simulation show the highest release probability of 7 quanta released (ie p-hat) is approximately 0.50 - 0.51
+
+The probability that we would have gotten the calculated p of 0.5 when the null hypothesis (no change from 0.3) is true is not able to be calculated with the information given, since a probability of a hypothesis being true is the language of Bayesian statistics, and we are not given any information regarding priors to appropriately calculate this.  Therefore in the Bayesian mindset, we cannot technically conclude that temperature had an effect even though 0.5 > 0.3 since we cannot compute Bayesian statistics to answer this question.
+
+```{r}
+#create sequence of release probabilities
+release_prob_seq <- seq(from = 0.01, to = 1, by = 0.01)
+
+
+#create empty list for probabilities
+probability_lists <- list()
+
+
+for (p in release_prob_seq) {
+  
+
+n <- 14
+#need a really large number of experiments to get the maximum of 14 possible successes/quanta
+num_experiments <- 100000
+
+# Simulate outcomes
+outcomes <- rbinom(num_experiments, size = n, prob = p)
+
+# Create a table of frequencies
+freq_table <- table(outcomes)
+
+# Convert the frequencies table to a data frame
+freq_df <- as.data.frame(freq_table)
+
+
+#now we have to normalize the data to get probabilities
+#start by summming all the frequencies (denominator)
+the_sum <- sum(freq_df$Freq)
+
+#then add that normalization data to the frequencies dataframe
+freq_df$norm <- freq_df$Freq / the_sum
+
+#filter to only keep the information regarding 7 successes/quanta and then only keep the outcomes and norm columns
+freq_df <- freq_df %>%
+  filter(outcomes == 7) %>%
+  transmute(outcomes, norm)
+
+#add another column which adds the release probability in question
+freq_df[1, "Freq"] <- as.numeric(p)
+
+#then keep only the release probability and norm/probability info
+freq_df <- freq_df %>%
+  transmute(Freq, norm)
+
+#add that iteration to the master list created at the beginning
+probability_lists <- c(list(freq_df), probability_lists)
+
+
+}
+
+# Stack the data frames in the list into a single data frame
+final_7_quanta_prob <- do.call(rbind, probability_lists) %>%
+  arrange(Freq)
+
+#rename the columns to make more sense
+colnames(final_7_quanta_prob) <- c("release_probability", "probability_7_quanta")
+
+#arrange by probability of 7 quanta to easily see the highest
+final_7_quanta_prob <- final_7_quanta_prob %>%
+  arrange(probability_7_quanta)
+```
+
