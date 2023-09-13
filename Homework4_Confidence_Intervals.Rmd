@@ -1,0 +1,44 @@
+Homework 4: 95% Confidence Intervals
+
+Since we have a known standard deviation (sigma), we can use method 1, the z-score method, for all sample sizes even the ones with a small sample size which would typically require a t-distribution.
+```{r}
+#create vector of sample sizes to run
+sample_sizes <- c(5, 10, 20, 40, 80, 160, 1000)
+
+#add given statistics
+mu <- 10
+sigma <- 2
+
+#create an empty list for upper and lower CI limits for the below loop to put values into
+lower_limit_list <- c()
+upper_limit_list <- c()
+
+
+for (n in sample_sizes) {
+
+  #calculate SEM
+  SEM <- sigma/sqrt(n)
+  
+  #compute scaling factor with a z value of 1.96 for 95%, that we'll use to add and subtract from the mean
+  scaling_factor <- SEM*1.96
+  
+  #calculate lower and upper limits with the scaling factor
+  lower_limit_stat <- mu - scaling_factor
+  upper_limit_stat <- mu + scaling_factor
+  
+  #add those limits to the lists created at the beginning
+  lower_limit_list <- append(lower_limit_stat, lower_limit_list)
+  upper_limit_list <- append(upper_limit_stat, upper_limit_list)
+
+}
+
+#reverse the lists so they are in the correct order that matches the order of "sample_sizes"
+lower_limit_list <- rev(lower_limit_list)
+upper_limit_list <- rev(upper_limit_list)
+
+#add everything together in a nice dataframe
+confidence_intervals <- data.frame("N" = sample_sizes, "lower_limit" = lower_limit_list, "upper_limit" = upper_limit_list)
+View(confidence_intervals)
+
+```
+
