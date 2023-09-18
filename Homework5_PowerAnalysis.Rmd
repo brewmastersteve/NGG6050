@@ -1,0 +1,34 @@
+Homework 5 - power analyses
+```{r}
+
+
+library(pwr)
+
+#create a list of effect sizes roughly matching the range of correlations reported in Joshi et al
+effect_sizes <- seq(from = 0.1, to = 0.6, by = 0.01)
+
+#create empty list for sample size numbers
+data_samples <- c()
+
+for (i in effect_sizes) {
+  
+#conduct the power analysis for 80% power
+placeholder <- pwr.r.test(r = i, power = 0.8)
+#extract just the sample size
+calculated_n <- placeholder$n
+
+#append sample size to the list at the beginning
+data_samples <- append(calculated_n, data_samples)
+
+}
+
+#reverse the order so it matches the sequence order
+data_samples <- rev(data_samples)
+
+#combine data in a dataframe
+final_power_analysis <- data.frame("effect_sizes" = effect_sizes, "samples_needed_for_80%_power" = data_samples)
+
+#plot
+plot(final_power_analysis$effect_sizes, final_power_analysis$samples_needed_for_80._power, xlab = "effect size", ylab = "samples needed for 80% power", main = "power analysis")
+```
+
