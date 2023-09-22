@@ -1,0 +1,188 @@
+Homework 6: Multiple Comparisons
+#Simulate p values
+```{r}
+
+#create a list of 1000 numbers to represent how many tests we want to run
+experiment_iterations <- seq(from = 1, to = 1000, by = 1)
+
+#create an empty list for the p values
+final_pvalues <- c()
+#specify alpha
+alpha <- 0.05
+
+#loop through 1000 replications
+for (i in experiment_iterations) {
+  
+#generate data sample 1
+data1 <- rnorm(30, mean = 4, sd = 3)
+#generate data sample 2
+data2 <- rnorm(30, mean = 4, sd = 3)
+
+#run a non-paired 2 sample t test
+  placeholder <- t.test(x = data1, y = data2, paired = FALSE, var.equal = TRUE)
+  #extract just the p value
+  statistic <- placeholder$p.value
+  
+  #add that p value to the list created at the beginning
+  final_pvalues <- append(statistic, final_pvalues)
+  
+}
+
+#make a dataframe with all the p values
+total_pvalues <- data.frame("experiment_iteration" = experiment_iterations, "p_values" = final_pvalues)
+#count all the p values that are significant
+count <- as.numeric(sum(total_pvalues$p_values < alpha))
+
+#and then print that summation
+print(paste(count,"trials identified as <",alpha))
+
+```
+#Multiple comparison correction
+```{r}
+
+#Bonferroni method
+
+#calculate adjusted alpha
+adjusted_alpha <- alpha/1000
+
+#using the same dataframe of simulated p values, count how many are significant now, based on the adjusted alpha
+bonfer_count <- as.numeric(sum(total_pvalues$p_values < adjusted_alpha))
+
+#and then print that summation
+print(paste(bonfer_count,"trials identified as significant with the Bonferroni method"))
+
+
+
+#Benjamini-Hochberg
+
+#load the simple FDR package, created, written, and published to CRAN by yours truly
+#I built this package specifically around the Benjamini-Hochberg procedure
+library(simpleFDR)
+
+#calculate significance based on the BH method using the simFDR function and return all values, not filtered by significance
+BH_adjustments <- simFDR(total_pvalues, sig_only = FALSE)
+
+#count how many are significant now, which is done by counting how many NAs there are not (significance is denoted by an asterisk)
+BH_count <- as.numeric(sum(!is.na(BH_adjustments$significant)))
+
+#and print that number
+print(paste(BH_count,"trials identified as significant with the Benjamini-Hochberg method"))
+
+
+```
+#Rerun the full script with means 1 & 2, and then more means with larger differences
+As you will see from the resulting plot, when there is a difference of 1 between the means, the number of significanes out of 1000 experiments increases (compared to equal means) which drops substantially with the bonferroni correction, but a less significant drop with the BH correction.  For larger differences between the means, this same pattern holds, where the BH correction does not substantially effect the original number of significances, but the Bonferroni does, but eventually with large enough differences, all 1000 trials are significant even with both correction methods.
+```{r}
+#create a list of 1000 numbers to represent how many tests we want to run
+experiment_iterations <- seq(from = 1, to = 1000, by = 1)
+
+#create different mean sequences
+mean1seq <- seq(from = 1, to = 10, by = 1)
+mean2seq <- seq(from = 2, to = 20, by = 2)
+
+#create a sequence to cycle through 10 different mean difference scenarios
+mean_difference_iterations <- seq(from = 1, to = 10, by = 1)
+
+#create empty vectors for counts of significances under all 3 methods
+sig_no_correction <- c()
+sig_bonferroni <- c()
+sig_BH <- c()
+
+#repeat the script so far looping though it for each of the 10 mean differences scenarios
+for (j in mean_difference_iterations) {
+  
+
+
+#create an empty list for the p values
+final_pvalues <- c()
+#specify alpha
+alpha <- 0.05
+
+#loop through 1000 replications
+for (i in experiment_iterations) {
+  
+#generate data sample 1
+data1 <- rnorm(30, mean = mean1seq[j], sd = 3)
+#generate data sample 2
+data2 <- rnorm(30, mean = mean2seq[j], sd = 3)
+
+#run a non-paired 2 sample t test
+  placeholder <- t.test(x = data1, y = data2, paired = FALSE, var.equal = TRUE)
+  #extract just the p value
+  statistic <- placeholder$p.value
+  
+  #add that p value to the list created at the beginning
+  final_pvalues <- append(statistic, final_pvalues)
+  
+}
+
+#make a dataframe with all the p values
+total_pvalues <- data.frame("experiment_iteration" = experiment_iterations, "p_values" = final_pvalues)
+#count all the p values that are significant
+count <- as.numeric(sum(total_pvalues$p_values < alpha))
+
+
+
+
+
+
+#corrections
+
+#Bonferroni method
+
+#calculate adjusted alpha
+adjusted_alpha <- alpha/1000
+
+#using the same dataframe of simulated p values, count how many are significant now, based on the adjusted alpha
+bonfer_count <- as.numeric(sum(total_pvalues$p_values < adjusted_alpha))
+
+
+
+
+#Benjamini-Hochberg
+
+#load the simple FDR package, created, written, and published to CRAN by yours truly
+#I built this package specifically around the Benjamini-Hochberg procedure
+library(simpleFDR)
+
+#calculate significance based on the BH method using the simFDR function and return all values, not filtered by significance
+BH_adjustments <- simFDR(total_pvalues, sig_only = FALSE)
+
+#count how many are significant now, which is done by counting how many NAs there are not (significance is denoted by an asterisk)
+BH_count <- as.numeric(sum(!is.na(BH_adjustments$significant)))
+
+
+
+#add the counts for each method to the appropriate vector created at the beginning
+sig_no_correction <- append(count, sig_no_correction)
+sig_bonferroni <- append(bonfer_count, sig_bonferroni)
+sig_BH <- append(BH_count, sig_BH)
+
+}
+
+#reverse those counts to get them in the correct order
+sig_no_correction <- rev(sig_no_correction)
+sig_bonferroni <- rev(sig_bonferroni)
+sig_BH <- rev(sig_BH)
+
+#add all the counts as a function of the difference between the 2 means
+mean_difference_dataframe <- data.frame("mean_difference" = mean_difference_iterations, "original_significances" = sig_no_correction, "bonferroni_significances" = sig_bonferroni, "BH_significances" = sig_BH)
+
+#plot the number of significances out of 1000 for each method
+plot(mean_difference_dataframe$mean_difference, mean_difference_dataframe$original_significances, main = "Difference between means vs Number of Significances out of 1000 tries", xlab = "Difference between the 2 means", ylab = "number of signifances", xaxt = "n", col = "blue", type = "l", ylim = c(1,1000))
+axis(1, at = 1:10)
+
+lines(mean_difference_dataframe$mean_difference, mean_difference_dataframe$bonferroni_significances, col = "red")
+lines(mean_difference_dataframe$mean_difference, mean_difference_dataframe$BH_significances, col = "green")
+
+points(mean_difference_dataframe$mean_difference, mean_difference_dataframe$original_significances, col = "blue")
+points(mean_difference_dataframe$mean_difference, mean_difference_dataframe$bonferroni_significances, col = "red")
+points(mean_difference_dataframe$mean_difference, mean_difference_dataframe$BH_significances, col = "green")
+
+legend("bottomright", legend = c("original significances", "bonferroni corr", "BH corr"), 
+       col = c("blue", "red", "green"), lty = 1, pch = 19)
+
+
+
+```
+
