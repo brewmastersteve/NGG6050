@@ -1,0 +1,195 @@
+Homework 7 - parametric correlation coefficient
+
+Q1: Do they look related?
+A: see below plot, yes it looks like it
+```{r}
+
+wing_length <- c(10.4,10.8,11.1,10.2,10.3,10.2,10.7,10.5,10.8,11.2,10.6,11.4)
+tail_length <- c(7.4,7.6,7.9,7.2,7.4,7.1,7.4,7.2,7.8,7.7,7.8,8.3)
+
+
+plot(wing_length, tail_length, xlab = "wing length", ylab = "tail length")
+
+
+```
+Q2: calculate r manually, then with the R function
+```{r}
+#manually
+
+#get the means
+xbar <- mean(wing_length)
+ybar <- mean(tail_length)
+
+#create some empty lists
+numerator <- c()
+X_SS <- c()
+Y_SS <- c()
+
+total_iterations <- seq(from = 1, to = length(wing_length), by = 1)
+
+for (i in total_iterations) {
+  
+  
+  num_placeholder <- (wing_length[i]-xbar)*(tail_length[i]-ybar)
+  x_placeholder <- (wing_length[i]-xbar)^2
+  y_placeholder <- (tail_length[i]-ybar)^2
+  
+  numerator <- append(num_placeholder, numerator)
+  X_SS <- append(x_placeholder, X_SS)
+  Y_SS <- append(y_placeholder, Y_SS)
+  
+  
+}
+
+#final statistic, just summing the things from the for loop
+manual_r <- sum(numerator)/(sqrt(sum(X_SS))*sqrt(sum(Y_SS)))
+
+print(paste("manually calculated r is", manual_r))
+
+
+
+#with r function
+the_r_function <- cor(x = wing_length, y = tail_length)
+
+print(paste("the r function calculated r is", the_r_function))
+
+if(identical(manual_r,the_r_function) == TRUE){
+  
+  print("both ways are identical")
+}
+
+if(identical(manual_r,the_r_function) == FALSE){
+  
+  print("both ways are not identical")
+}
+```
+Q3: Standard error and CI
+```{r}
+
+#standard error
+# Calculate the sample size (n)
+n <- as.numeric(length(wing_length))  # or length(y)
+
+# Calculate the standard error of the correlation
+standard_error <- sqrt((1 - the_r_function^2) / (n - 2))
+
+print(paste("standard error is", standard_error))
+
+
+#CI
+
+alpha <- 0.05  # 95% confidence level
+z_alpha_over_2 <- qnorm(1 - alpha / 2)
+
+# Calculate the confidence interval
+lower_bound <- the_r_function - z_alpha_over_2 * standard_error
+upper_bound <- the_r_function + z_alpha_over_2 * standard_error
+
+# Print the confidence interval
+cat("95% Confidence Interval: [", round(lower_bound, 4), ", ", round(upper_bound, 4), "]\n")
+```
+Q4: Significance?
+```{r}
+
+t_statistic <- the_r_function/standard_error
+
+if(t_statistic > 1.96){
+  cat("Yes significant because t statistic,",t_statistic,", is beyond ± 1.96, the cutoff for significance here.")
+}
+
+if(t_statistic < 1.96){
+  cat("No significant because t statistic,",t_statistic,", is not beyond ± 1.96, the cutoff for significance here.")
+}
+
+```
+Q5: Is our correlation different from Yale's?
+```{r}
+#make appropriate transformations
+our_transformation <- 0.5*log(x = (1+the_r_function)/(1-the_r_function), base = exp(1))
+yales_transformation <- 0.5*log(x = (1+0.75)/(1-0.75), base = exp(1))
+
+#calculate
+calculated_gamma <- (our_transformation-yales_transformation)/(sqrt(1/(n-3)))
+
+if(calculated_gamma > 1.96){
+  cat("Yes significant because gamma,",calculated_gamma,", is beyond ± 1.96, the cutoff for significance here. So Yale's is different from ours.")
+}
+
+if(calculated_gamma < 1.96){
+  cat("No significant because gamma,",calculated_gamma,", is within ± 1.96, the cutoff for significance here. So Yale's is the same as ours.")
+}
+  
+  
+```
+Q6: Power and sample size
+```{r}
+library(pwr)
+#first run the loop to determine sample sizes for 80% power
+
+#create a list of effect sizes
+effect_sizes <- seq(from = 0.5, to = 0.95, by = 0.05)
+
+#create empty list for sample size numbers
+data_samples <- c()
+
+for (i in effect_sizes) {
+  
+#conduct the power analysis for 80% power
+placeholder <- pwr.r.test(r = i, power = 0.8)
+#extract just the sample size
+calculated_n <- placeholder$n
+
+#append sample size to the list at the beginning
+data_samples <- append(calculated_n, data_samples)
+
+}
+
+#reverse the order so it matches the sequence order
+data_samples <- rev(data_samples)
+
+#combine data in a dataframe
+final_power_analysis_sample_sizes <- data.frame("r_values" = effect_sizes, "samples_needed_for_80percent_power" = data_samples)
+
+
+
+
+
+#then run it to determine power from a sample size of 10
+
+
+#create a list of effect sizes
+effect_sizes <- seq(from = 0.5, to = 1, by = 0.05)
+
+#create empty list for sample size numbers
+data_samples <- c()
+
+for (i in effect_sizes) {
+  
+#conduct the power analysis for n = 10
+placeholder <- pwr.r.test(r = i, n = 10)
+#extract just the sample size
+calculated_power <- placeholder$power
+
+#append sample size to the list at the beginning
+data_samples <- append(calculated_power, data_samples)
+
+}
+
+#reverse the order so it matches the sequence order
+data_samples <- rev(data_samples)
+
+#combine data in a dataframe
+final_power_analysis_powers <- data.frame("r_values" = effect_sizes, "power_for_sample_size_of_10" = data_samples)
+
+library(plyr)
+#combine both results
+final_power_analysis <- join_all(list(final_power_analysis_sample_sizes,final_power_analysis_powers))
+
+cat("View the 'final_power_analysis' dataframe for power and sample size values.")
+
+
+
+
+```
+
+
