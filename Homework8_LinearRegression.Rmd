@@ -1,0 +1,111 @@
+Homework 8 - Linear Regression
+#Q1 - Plot
+```{r}
+#get variables in
+age <- c(3,4,5,6,7,8,9,11,12,14,15,16,17)
+wing_length <- c(1.4,1.5,2.2,2.4,3.1,3.2,3.2,3.9,4.1,4.7,4.5,5.2,5)
+
+#standard plot
+plot(age,wing_length)
+
+
+```
+#Q2 - calculate and plot regression line
+```{r}
+#using built in R function to calculate regression
+regression <- lm(wing_length ~ age)
+
+#then plot it
+plot(age,wing_length, main = 'Wing Length vs Age', xlab = "Age", ylab = "Wing Length", pch = 19, col = "blue")
+#and add the regression line
+abline(regression, col = 'red')
+```
+#Q3 - reject Ho?
+Yes because as you will see from the F-statistic row at the bottom, the p-value is 3.01e-9 which is far less than 0.05.
+Therefore there is significance and we can reject that the slope is 0.
+```{r}
+#get a list of the regression stats
+calculated_stats <- summary(regression)
+
+#and print them out to see the p-value at the bottom based on the F statistic
+print(calculated_stats)
+
+
+```
+#Q4 - CI
+See the R console tab for the 95% CI around the slope.
+```{r}
+#use built in R CI function specifically built around the linear model function used in question 2
+confidence_interval <- confint(regression, "age", level = 0.95)
+
+#print
+print(paste("95% CI is","[",confidence_interval[1],",",confidence_interval[2],"]"))
+
+
+#to visualize, lets put the data in a dataframe
+df <- data.frame("age" = age, "wing_length" = wing_length)
+
+#then using ggplot, plot the data
+library(ggplot2)
+ggplot(df, aes(x = age, y = wing_length)) +
+  geom_point() +  # Add scatterplot points
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +  # Add regression line with CI
+  labs(
+    title = "Scatterplot with Regression Line and 95% CI",
+    x = "Age",
+    y = "Wing Length"
+  )
+
+
+```
+#Q5 - r squared
+```{r}
+#r squared was already calculated from the R regression function so just extract it
+print(paste("The r^2 is",calculated_stats$r.squared))
+```
+#Q6 - pearson's R
+```{r}
+#from a previous homework calculate pearson's r using the built in R function
+pearsons_cor <- cor(x = age, y = wing_length)
+
+print(paste("Pearson's r is", pearsons_cor))
+```
+#Q7 - add some noise to the data
+At the suggestion of ChatGPT, we can add noise to each point by using the rnorm function to generate random numbers from a normal distribution.
+With a high noise rate (2.3 standard deviations), the trend is essentially gone with a non-significant p value (most of the time bc this depends on randomly generated noise).
+95% CI is now a much wider range.
+```{r}
+#set an arbitrary noise level which will be the standard deviation
+noise_level <- 2.3
+
+#calculate new noisy ages
+age2 <- age + rnorm(length(age), mean = 0, sd = noise_level)
+wing_length2 <- wing_length + rnorm(length(wing_length), mean = 0, sd = noise_level)
+
+#get everything into a dataframe
+noisy_data <- data.frame("age" = age2, "wing_length" = wing_length2)
+
+#calculate regression statistics
+regression2 <- lm(wing_length ~ age, data = noisy_data)
+
+#print the stats to see the new p value
+print(summary(regression2))
+
+#then plot with CI as before
+library(ggplot2)
+ggplot(noisy_data, aes(x = age, y = wing_length)) +
+  geom_point() +  # Add scatterplot points
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +  # Add regression line with CI
+  labs(
+    title = "Noisy Scatterplot with Regression Line and 95% CI",
+    x = "Age",
+    y = "Wing Length"
+  )
+
+#and recalculate r and r^2
+print(paste("Pearson's r is now",cor(x = noisy_data$age, y = noisy_data$wing_length)))
+noisy_cal_stats <- summary(regression2)
+print(paste("R squared is now",noisy_cal_stats$r.squared))
+
+```
+
