@@ -1,0 +1,279 @@
+Hotplate data processing
+
+#rearrange everything & normality tests
+```{r}
+library(tidyr)
+library(dplyr)
+library(tidyverse)
+library(stats)
+
+
+female_path <- "hotplatepilot/raw_female_7dayhotplatepilot_48.csv"
+male_path <- "hotplatepilot/raw_male_7dayhotplatepilot_48.csv"
+
+output_path <- "hotplatepilot/PRISMcsvs"
+
+#female data
+
+#read it in
+female_data <- read.csv(file = female_path)
+
+#identify only the averages across all 3 von frey measurements
+averages <- grep("ave", names(female_data), value = TRUE)
+#then keep only those averages plus the animal id
+female_data <- female_data[, c("animal",averages), drop = FALSE]
+
+#save it
+write.csv(female_data, file = paste0(output_path,"/female_48_7daywithpsiloPRISM_horizontal.csv"))
+
+#transpose data so that it is in the prism format
+female_data <- as.data.frame(t(female_data))
+
+#fix the column names
+colnames(female_data) <- female_data[1,]
+female_data <- female_data[-1,]
+
+write.csv(female_data, file = paste0(output_path,"/female_48_7daywithpsiloPRISM_vertical.csv"))
+
+
+#transpose back for animal averaging
+female_data <- as.data.frame(t(female_data))
+
+#reassign animal/row names to be in a simple number order
+new_row_names <- character(nrow(female_data))
+current_number <- 0
+current_letter <- "R"
+
+# Loop through the rows and set the new row names
+for (i in 1:nrow(female_data)) {
+  new_row_names[i] <- paste0(current_number, "_", current_letter)
+  
+  # Update the number and letter for the next row
+  if (i %% 2 == 0) {
+    current_number <- current_number + 1
+  }
+  current_letter <- ifelse(current_letter == "R", "L", "R")
+}
+
+# Assign the new row names to the DataFrame
+rownames(female_data) <- new_row_names
+
+
+#create list of all unique animal IDs
+female_animals <- sub("^(.*?)_.*", "\\1", rownames(female_data))
+female_animals <- unique(female_animals)
+
+female_data[] <- lapply(female_data, as.numeric)
+
+
+
+# Preallocate the 'final' DataFrame with dimensions
+final_females <- data.frame(matrix(NA, nrow = length(female_animals), ncol = ncol(female_data)))
+colnames(final_females) <- colnames(female_data)
+rownames(final_females) <- female_animals
+
+# Loop through the identifiers
+for (i in seq_along(female_animals)) {
+  id <- female_animals[i]
+
+  # Subset df to keep rows with row names containing the identifier
+  subset_df <- female_data[grep(id, rownames(female_data)), ]
+
+  # Calculate the row-wise means for each subset and assign to 'final'
+  final_females[i, ] <- colMeans(subset_df)
+}
+
+write.csv(final_females, file = paste0(output_path,"/ave_female_7daywithpsiloPRISM_horizontal.csv"))
+
+#Normality test
+
+shapiro_test_row <- function(row) {
+  result <- shapiro.test(row)
+  return(result$p.value)
+}
+
+# Apply the Shapiro-Wilk test to each row of your DataFrame
+shapiro_test_results <- apply(final_females, 1, shapiro_test_row)
+
+shapiro_frame <- data.frame("p_values" = shapiro_test_results)
+rownames(shapiro_frame) <- rownames(final_females)
+shapiro_frame <- shapiro_frame %>%
+  mutate(sig = ifelse(p_values < 0.05, "*", ""))
+
+write.csv(shapiro_frame, file = paste0(output_path,"/normality_females.csv"))
+
+#transpose averaged data
+final_females <- as.data.frame(t(final_females))
+
+write.csv(final_females, file = paste0(output_path,"/ave_female_7daywithpsiloPRISM_vertical.csv"))
+
+
+
+
+
+##############################
+
+#male data
+
+#read it in
+male_data <- read.csv(file = male_path)
+
+#identify only the averages across all 3 von frey measurements
+averages <- grep("ave", names(male_data), value = TRUE)
+#then keep only those averages plus the animal id
+male_data <- male_data[, c("animal",averages), drop = FALSE]
+
+#save it
+write.csv(male_data, file = paste0(output_path,"/male_48_7daywithpsiloPRISM_horizontal.csv"))
+
+#transpose data so that it is in the prism format
+male_data <- as.data.frame(t(male_data))
+
+#fix the column names
+colnames(male_data) <- male_data[1,]
+male_data <- male_data[-1,]
+
+write.csv(male_data, file = paste0(output_path,"/male_48_7daywithpsiloPRISM_vertical.csv"))
+
+
+#transpose back for animal averaging
+male_data <- as.data.frame(t(male_data))
+
+#reassign animal/row names to be in a simple number order
+new_row_names <- character(nrow(male_data))
+current_number <- 0
+current_letter <- "R"
+
+# Loop through the rows and set the new row names
+for (i in 1:nrow(male_data)) {
+  new_row_names[i] <- paste0(current_number, "_", current_letter)
+  
+  # Update the number and letter for the next row
+  if (i %% 2 == 0) {
+    current_number <- current_number + 1
+  }
+  current_letter <- ifelse(current_letter == "R", "L", "R")
+}
+
+# Assign the new row names to the DataFrame
+rownames(male_data) <- new_row_names
+
+
+#create list of all unique animal IDs
+male_animals <- sub("^(.*?)_.*", "\\1", rownames(male_data))
+male_animals <- unique(male_animals)
+
+male_data[] <- lapply(male_data, as.numeric)
+
+
+
+# Preallocate the 'final' DataFrame with dimensions
+final_males <- data.frame(matrix(NA, nrow = length(male_animals), ncol = ncol(male_data)))
+colnames(final_males) <- colnames(male_data)
+rownames(final_males) <- male_animals
+
+# Loop through the identifiers
+for (i in seq_along(male_animals)) {
+  id <- male_animals[i]
+
+  # Subset df to keep rows with row names containing the identifier
+  subset_df <- male_data[grep(id, rownames(male_data)), ]
+
+  # Calculate the row-wise means for each subset and assign to 'final'
+  final_males[i, ] <- colMeans(subset_df)
+}
+
+write.csv(final_males, file = paste0(output_path,"/ave_male_7daywithpsiloPRISM_horizontal.csv"))
+
+#Normality test
+
+# Apply the Shapiro-Wilk test to each row of your DataFrame
+shapiro_test_results <- apply(final_males, 1, shapiro_test_row)
+
+shapiro_frame <- data.frame("p_values" = shapiro_test_results)
+rownames(shapiro_frame) <- rownames(final_males)
+
+shapiro_frame <- shapiro_frame %>%
+  mutate(sig = ifelse(p_values < 0.05, "*", ""))
+
+write.csv(shapiro_frame, file = paste0(output_path,"/normality_males.csv"))
+
+#transpose averaged data
+final_males <- as.data.frame(t(final_males))
+
+write.csv(final_males, file = paste0(output_path,"/ave_male_7daywithpsiloPRISM_vertical.csv"))
+
+
+```
+#normalization of data
+```{r}
+#females first
+
+#transpose data back to horizontal format
+final_females <- as.data.frame(t(final_females))
+
+norm_females <- data.frame(matrix(NA, nrow = length(female_animals), ncol = ncol(final_females)))
+colnames(norm_females) <- colnames(final_females)
+rownames(norm_females) <- female_animals
+
+# Loop through the identifiers
+for (i in seq_along(female_animals)) {
+  id <- female_animals[i]
+
+  # Subset df to keep rows with row names containing the identifier
+  subset_df <- final_females[row.names(final_females) == id, ]
+
+  #get the baseline value, which is the first cell, ie day 1, ie baseline
+  norm_value <- subset_df[1,1]
+  
+  #then subtract that value from everything and put it in the placeholder
+  norm_females[i, ] <- subset_df - norm_value
+}
+
+#get rid of the baseline data, which is now just 0
+norm_females <- norm_females[,-1]
+
+write.csv(norm_females, file = paste0(output_path,"/norm_females.csv"))
+
+norm_females <- as.data.frame(t(norm_females))
+
+write.csv(norm_females, file = paste0(output_path,"/norm_females_vertical.csv"))
+
+
+
+#males
+#transpose data back to horizontal format
+final_males <- as.data.frame(t(final_males))
+
+norm_males <- data.frame(matrix(NA, nrow = length(male_animals), ncol = ncol(final_males)))
+colnames(norm_males) <- colnames(final_males)
+rownames(norm_males) <- male_animals
+
+
+# Loop through the identifiers
+for (i in seq_along(male_animals)) {
+  id <- male_animals[i]
+
+  # Subset df to keep rows with row names containing the identifier
+  subset_df <- final_males[row.names(final_males) == id, ]
+
+  #get the baseline value, which is the first cell, ie day 1, ie baseline
+  norm_value <- subset_df[1,1]
+  
+  #then subtract that value from everything and put it in the placeholder
+  norm_males[i, ] <- subset_df - norm_value
+}
+
+#get rid of the baseline data, which is now just 0
+norm_males <- norm_males[,-1]
+
+write.csv(norm_males, file = paste0(output_path,"/norm_males.csv"))
+
+norm_males <- as.data.frame(t(norm_males))
+
+write.csv(norm_males, file = paste0(output_path,"/norm_males_vertical.csv"))
+
+```
+
+
+
