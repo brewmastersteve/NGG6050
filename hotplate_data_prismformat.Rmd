@@ -11,7 +11,7 @@ library(stats)
 female_path <- "hotplatepilot/raw_female_7dayhotplatepilot_48.csv"
 male_path <- "hotplatepilot/raw_male_7dayhotplatepilot_48.csv"
 
-output_path <- "hotplatepilot/PRISMcsvs"
+output_path <- "hotplatepilot/dummy"
 
 #female data
 
@@ -24,7 +24,7 @@ averages <- grep("ave", names(female_data), value = TRUE)
 female_data <- female_data[, c("animal",averages), drop = FALSE]
 
 #save it
-write.csv(female_data, file = paste0(output_path,"/female_48_7daywithpsiloPRISM_horizontal.csv"))
+write.csv(female_data, file = paste0(output_path,"/female_PRISM_horizontal.csv"))
 
 #transpose data so that it is in the prism format
 female_data <- as.data.frame(t(female_data))
@@ -33,7 +33,7 @@ female_data <- as.data.frame(t(female_data))
 colnames(female_data) <- female_data[1,]
 female_data <- female_data[-1,]
 
-write.csv(female_data, file = paste0(output_path,"/female_48_7daywithpsiloPRISM_vertical.csv"))
+write.csv(female_data, file = paste0(output_path,"/female_PRISM_vertical.csv"))
 
 
 #transpose back for animal averaging
@@ -83,7 +83,7 @@ for (i in seq_along(female_animals)) {
   final_females[i, ] <- colMeans(subset_df)
 }
 
-write.csv(final_females, file = paste0(output_path,"/ave_female_7daywithpsiloPRISM_horizontal.csv"))
+write.csv(final_females, file = paste0(output_path,"/ave_female_PRISM_horizontal.csv"))
 
 #Normality test
 
@@ -105,7 +105,7 @@ write.csv(shapiro_frame, file = paste0(output_path,"/normality_females.csv"))
 #transpose averaged data
 final_females <- as.data.frame(t(final_females))
 
-write.csv(final_females, file = paste0(output_path,"/ave_female_7daywithpsiloPRISM_vertical.csv"))
+write.csv(final_females, file = paste0(output_path,"/ave_female_PRISM_vertical.csv"))
 
 
 
@@ -124,7 +124,7 @@ averages <- grep("ave", names(male_data), value = TRUE)
 male_data <- male_data[, c("animal",averages), drop = FALSE]
 
 #save it
-write.csv(male_data, file = paste0(output_path,"/male_48_7daywithpsiloPRISM_horizontal.csv"))
+write.csv(male_data, file = paste0(output_path,"/male_PRISM_horizontal.csv"))
 
 #transpose data so that it is in the prism format
 male_data <- as.data.frame(t(male_data))
@@ -133,7 +133,7 @@ male_data <- as.data.frame(t(male_data))
 colnames(male_data) <- male_data[1,]
 male_data <- male_data[-1,]
 
-write.csv(male_data, file = paste0(output_path,"/male_48_7daywithpsiloPRISM_vertical.csv"))
+write.csv(male_data, file = paste0(output_path,"/male_PRISM_vertical.csv"))
 
 
 #transpose back for animal averaging
@@ -183,7 +183,7 @@ for (i in seq_along(male_animals)) {
   final_males[i, ] <- colMeans(subset_df)
 }
 
-write.csv(final_males, file = paste0(output_path,"/ave_male_7daywithpsiloPRISM_horizontal.csv"))
+write.csv(final_males, file = paste0(output_path,"/ave_male_PRISM_horizontal.csv"))
 
 #Normality test
 
@@ -201,10 +201,102 @@ write.csv(shapiro_frame, file = paste0(output_path,"/normality_males.csv"))
 #transpose averaged data
 final_males <- as.data.frame(t(final_males))
 
-write.csv(final_males, file = paste0(output_path,"/ave_male_7daywithpsiloPRISM_vertical.csv"))
+write.csv(final_males, file = paste0(output_path,"/ave_male_PRISM_vertical.csv"))
 
 
 ```
+#mixed effects stuff
+```{r}
+#for the lme4 stuff, the data needs to be in a longer format so we'll do that for each sex, then combine them
+
+
+#pivot the female data longer
+long_females <- pivot_longer(
+  data = final_females,
+  cols = everything(),
+  names_to = "animal",
+  values_to = "averages"
+)
+
+#rearrange
+long_females$animal <- as.numeric(long_females$animal)
+long_females <- long_females %>%
+  arrange(animal)
+
+#add in a sex column
+long_females$sex <- "female"
+
+
+#get the number of female and male animals
+female_length <- as.numeric(length(female_animals))
+male_length <- as.numeric(length(male_animals))
+
+#create a new sequence for the males so that each animal has a unique number.  The females keep theirs, and we'll reassign the male numbers picking up at the last female number as it is currently
+new_male_sequence <- as.character(seq(from = female_length, to = (male_length+female_length)-1, by = 1))
+
+
+
+#create the new dataframe
+long_males <- final_males
+#but first reassign the male animal names (simply the columns)
+colnames(long_males) <- new_male_sequence
+
+#now we can pivot that longer
+long_males <- pivot_longer(
+  data = long_males,
+  cols = everything(),
+  names_to = "animal",
+  values_to = "averages"
+)
+
+#samae thing, some rearranging here
+long_males$animal <- as.numeric(long_males$animal)
+long_males <- long_males %>%
+  arrange(animal)
+
+#add on the sex
+long_males$sex <- "male"
+
+#finally combine everything into 1 long dataframe
+total_long_data <- rbind(long_females,long_males)
+
+
+
+
+############################
+#mixed model code here on
+
+#this order of library loading is important so that it forces p values
+library (lme4)
+library(lmerTest)
+
+
+model <- lmer(averages ~ sex + (1|animal), data = total_long_data)
+
+# Display model summary
+summary(model)
+
+
+```
+
+#power analysis
+
+```{r}
+#specifically from pilot data
+
+library(pwr)
+
+
+#females
+pwr.anova.test(k = 15, n = NULL, f = 0.5745, sig.level = 0.05, power = 0.8)
+
+#males
+pwr.anova.test(k = 15, n = NULL, f = 0.2433, sig.level = 0.05, power = 0.8)
+
+```
+
+
+
 #normalization of data
 ```{r}
 #females first
@@ -233,7 +325,7 @@ for (i in seq_along(female_animals)) {
 #get rid of the baseline data, which is now just 0
 norm_females <- norm_females[,-1]
 
-write.csv(norm_females, file = paste0(output_path,"/norm_females.csv"))
+write.csv(norm_females, file = paste0(output_path,"/norm_females_horizontal.csv"))
 
 norm_females <- as.data.frame(t(norm_females))
 
@@ -267,7 +359,7 @@ for (i in seq_along(male_animals)) {
 #get rid of the baseline data, which is now just 0
 norm_males <- norm_males[,-1]
 
-write.csv(norm_males, file = paste0(output_path,"/norm_males.csv"))
+write.csv(norm_males, file = paste0(output_path,"/norm_males_horizontal.csv"))
 
 norm_males <- as.data.frame(t(norm_males))
 
